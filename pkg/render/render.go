@@ -3,36 +3,58 @@ package render
 import (
 	"fmt"
 	"log"
+	"os"
 	"net/http"
 	"html/template"
 )
 
-// templates cache
-var tc = make(map[string]*template.Template)
+type page struct {
+	template *template.Template
+	status os.FileInfo
+}
+
+// page cache
+var pc = make(map[string]*page)
 
 func RenderTemplate(w http.ResponseWriter, f string) {
-	// check if the required template is on the cache
-	_, exists := tc[f]
+	// check if the required page is on the cache
+	_, exists := pc[f]
 	if !exists {
 		log.Println("[render] loading template:", f)
-		err := loadTemplate(f)
+		err := loadPage(f)
 		if err != nil {
 			log.Println("[render] failed loading template:", err)
 			return
 		}
 	} else {
-		log.Printf("[render] using template %s from cache", f)
+		// check if there was an update to the disk file
+		cs, err := os.Stat("./templates/" + f)
+		if err != nil {
+			log.Println("[render] failed loading file status:", err)
+			return
+		}
+		if cs.ModTime() != pc[f].status.ModTime() {
+			// reload template
+			log.Println("[render] reloading template:", f)
+			err := loadPage(f)
+			if err != nil {
+				log.Println("[render] failed loading template:", err)
+				return
+			}
+		} else {
+			log.Printf("[render] using template %s from cache", f)
+		}
 	}
 
-	t := tc[f]
-	err := t.Execute(w, nil)
+	p := pc[f]
+	err := p.template.Execute(w, nil)
 	if err != nil {
 		log.Println("[render] error: failed to execute the template:", err)
 		return
 	}
 }
 
-func loadTemplate(f string) error {
+func loadPage(f string) error {
 	templates := []string{
 		fmt.Sprintf("./templates/%s", f),
 		"./templates/base.html",
@@ -44,8 +66,20 @@ func loadTemplate(f string) error {
 		return err
 	}
 
-	// add template to the cache
-	tc[f] = tmpl
+	// load file status
+	stat, err := os.Stat(templates[0])
+	if err != nil {
+		return err
+	}
+
+	// create the page struct
+	p := page {
+		template: tmpl,
+		status: stat,
+	}
+
+	// add page to the cache
+	pc[f] = &p
 
 	return nil
 }
