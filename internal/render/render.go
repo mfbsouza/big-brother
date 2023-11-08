@@ -2,15 +2,15 @@ package render
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"net/http"
 	"html/template"
+	"log"
+	"net/http"
+	"os"
 )
 
 type page struct {
 	template *template.Template
-	status os.FileInfo
+	status   os.FileInfo
 }
 
 // page cache
@@ -73,9 +73,9 @@ func loadPage(f string) error {
 	}
 
 	// create the page struct
-	p := page {
+	p := page{
 		template: tmpl,
-		status: stat,
+		status:   stat,
 	}
 
 	// add page to the cache

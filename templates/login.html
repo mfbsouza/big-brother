@@ -1,0 +1,10 @@
+
+{{template "base" .}}
+
+{{define "content"}}
+<p1>hello there!</p1>
+<form hx-post="/login">
+  <input id="title" name="title" type="text">
+  <button type="submit">Submit</button>
+</form>
+{{end}}
