@@ -1,8 +1,10 @@
 {{template "base" .}}
 
 {{define "content"}}
-<h1 class="text-3xl font-bold underline">
-  This is the about page
-</h1>
+<div class="container py-4 px-3 mx-auto">
+	<h1>This is the about page</h1>
+	<button class="btn btn-primary" hx-get="https://v2.jokeapi.dev/joke/Any?format=txt&safe-mode" hx-target="#joke">Click me for another joke!</button>
+	<h2 id="joke"></h2>
+</div>
 {{end}}
 

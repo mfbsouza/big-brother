@@ -57,6 +57,7 @@ func RenderTemplate(w http.ResponseWriter, f string) {
 func loadPage(f string) error {
 	templates := []string{
 		fmt.Sprintf("./templates/%s", f),
+		"./templates/navbar.html",
 		"./templates/base.html",
 	}
 
