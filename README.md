@@ -10,7 +10,7 @@ Check out [here!](CONTRIBUTING.md)
 
 ## Disclaimer
 
-Big-brother-web is distributed under GNU General Public License Version 2
+Big-brother is distributed under GNU General Public License Version 2
 
 This software comes with ABSOLUTELY NO WARRANTY.
 
