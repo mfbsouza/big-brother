@@ -3,21 +3,22 @@
 
 {{define "content"}}
 <div class="container py-4 px-3 mx-auto">
-	<form hx-post="/login">
+	<form id="form-login" hx-post="/login" hx-indicator="#spinner">
 		<div class="mb-3">
-		<label for="email-input" class="form-label">Email address</label>
-		<input type="email" name="email" class="form-control" id="email-input" aria-describedby="emailHelp">
-		<div id="emailHelp" class="form-text">We'll never share your email with anyone else.</div>
+		<label for="token-input" class="form-label">User Token</label>
+		<input type="text" name="token" class="form-control" id="token-input">
 		</div>
-		<div class="mb-3">
-		<label for="passwd-input" class="form-label">Password</label>
-		<input type="password" name="password" class="form-control" id="passwd-input">
-		</div>
-		<div class="mb-3 form-check">
-		<input type="checkbox" name="checkbox" class="form-check-input" id="checkbox-input">
-		<label class="form-check-label" for="checkbox-input">Check me out</label>
-		</div>
-		<button type="submit" class="btn btn-primary">Submit</button>
+		<button type="submit" class="btn btn-primary">
+		<span class="spinner-border spinner-border-sm htmx-indicator" id="spinner" role="status"></span>
+			Login
+		</button>
 	</form>
 </div>
+
+<script>
+	document.getElementById('form-login').addEventListener('htmx:afterSwap', function (event) {
+        window.location.reload();
+    });
+</script>
+
 {{end}}
