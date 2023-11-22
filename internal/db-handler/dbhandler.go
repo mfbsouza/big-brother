@@ -2,12 +2,14 @@ package dbhandler
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log"
 	"os"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/mfbsouza/big-brother/internal/db-types"
 )
 
 var db *sql.DB
@@ -30,6 +32,26 @@ func LoadDatabase(path string) {
 
 func CloseDatebase() {
 	db.Close()
+}
+
+func FindUser(id string) ([]byte, error) {
+	var u dbtypes.User
+	var cnt int = 0
+	log.Println("[db-handler] looking database for id:", id)
+	q := `SELECT * FROM user WHERE id=?`
+	rows, _ := db.Query(q, id)
+	for rows.Next() {
+		rows.Scan(&u.Id, &u.Name, &u.IsAdmin, &u.RegistrationDate, &u.RFIDTag)
+		cnt += 1
+	}
+	if cnt == 1 {
+		t, _ := json.Marshal(u)
+		return t, nil
+	} else if cnt == 0 {
+		return nil, errors.New("no user found")
+	} else {
+		return nil, errors.New("more than one row")
+	}
 }
 
 func populateDatabase() {

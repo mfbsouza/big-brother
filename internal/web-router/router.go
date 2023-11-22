@@ -44,7 +44,7 @@ func about(w http.ResponseWriter, r *http.Request) {
 func signIn(w http.ResponseWriter, r *http.Request) {
 	// check if the user is already logged in
 	if verifyClearance(r) {
-		log.Println("[router] user already logged in")
+		log.Println("[web-router] user already logged in")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -52,13 +52,13 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 	// get the user token from the form
 	err := r.ParseForm()
 	if err != nil {
-		log.Println("[router] failed parsing form:", err)
+		log.Println("[web-router] failed parsing form:", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	token := r.FormValue("token")
 	if len(token) == 0 {
-		log.Println("[router] failed reading 'token' key from form")
+		log.Println("[web-router] failed reading 'token' key from form")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
