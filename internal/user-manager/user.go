@@ -12,17 +12,19 @@ import (
 	"github.com/mfbsouza/big-brother/internal/db-types"
 )
 
+const cookie_name = "session_token"
+
 type User struct {
-	name string
+	Name string
 }
 
 type Session struct {
-	token  string
-	expiry time.Time
+	Token  string
+	Cookie *http.Cookie
 }
 
 func (s Session) isExpired() bool {
-	return s.expiry.Before(time.Now())
+	return s.Cookie.Expires.Before(time.Now())
 }
 
 // user cache
@@ -50,10 +52,10 @@ func ValidateUserToken(t string) bool {
 			body, _ := io.ReadAll(res.Body)
 			json.Unmarshal(body, &u)
 			uc[t] = &User{
-				name: u.Name,
+				Name: u.Name,
 			}
-			log.Printf("[user] username %s with token %s added to the cache\n",
-				u.Name, t)
+			log.Printf("[user] Found username %s! Adding to the cache\n",
+				u.Name)
 			return true
 		}
 	}
@@ -67,19 +69,30 @@ func ValidateSessionId(id string) bool {
 	return exists
 }
 
-func CreateSessionId(t string) (string, time.Time) {
+func CreateSessionId(t string) *Session {
 	sessionId := uuid.NewString()
 	expiresAt := time.Now().Add(120 * time.Second)
 
 	sc[sessionId] = &Session{
-		token:  t,
-		expiry: expiresAt,
+		Token:  t,
+		Cookie: &http.Cookie{
+			Name: cookie_name,
+			Value: sessionId,
+			Expires: expiresAt,
+		},
 	}
-
-	log.Printf("[user] created Session entry for token %s\n", t)
-	return sessionId, expiresAt
+	log.Printf("[user] created session entry %s for token %s\n", sessionId, t)
+	return sc[sessionId]
 }
 
 func DeleteSessionId(id string) {
 	sc[id] = nil
+}
+
+func VerifyClearance(r *http.Request) bool {
+	c, err := r.Cookie(cookie_name)
+	if err != nil {
+		return false
+	}
+	return ValidateSessionId(c.Value)
 }

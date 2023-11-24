@@ -9,8 +9,6 @@ import (
 	"github.com/mfbsouza/big-brother/internal/user-manager"
 )
 
-const cookie_name = "session_token"
-
 // function NewRouter creates a http.Handler with all
 // the routes supported by this web server
 func NewRouter() http.Handler {
@@ -21,16 +19,8 @@ func NewRouter() http.Handler {
 	return mux
 }
 
-func verifyClearance(r *http.Request) bool {
-	c, err := r.Cookie(cookie_name)
-	if err != nil {
-		return false
-	}
-	return user.ValidateSessionId(c.Value)
-}
-
 func home(w http.ResponseWriter, r *http.Request) {
-	if verifyClearance(r) {
+	if user.VerifyClearance(r) {
 		render.RenderTemplate(w, "home.html")
 	} else {
 		render.RenderTemplate(w, "login.html")
@@ -43,7 +33,7 @@ func about(w http.ResponseWriter, r *http.Request) {
 
 func signIn(w http.ResponseWriter, r *http.Request) {
 	// check if the user is already logged in
-	if verifyClearance(r) {
+	if user.VerifyClearance(r) {
 		log.Println("[web-router] user already logged in")
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -70,12 +60,8 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create session token
-	cookieId, expiresAt := user.CreateSessionId(token)
+	s := user.CreateSessionId(token)
 
 	// set the cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:    cookie_name,
-		Value:   cookieId,
-		Expires: expiresAt,
-	})
+	http.SetCookie(w, s.Cookie)
 }
