@@ -74,10 +74,10 @@ func CreateSessionId(t string) *Session {
 	expiresAt := time.Now().Add(120 * time.Second)
 
 	sc[sessionId] = &Session{
-		Token:  t,
+		Token: t,
 		Cookie: &http.Cookie{
-			Name: cookie_name,
-			Value: sessionId,
+			Name:    cookie_name,
+			Value:   sessionId,
 			Expires: expiresAt,
 		},
 	}

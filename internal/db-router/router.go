@@ -12,11 +12,17 @@ import (
 
 func NewRouter() http.Handler {
 	mux := chi.NewRouter()
+	// user routes
 	mux.Route("/user/{token}", func(r chi.Router) {
 		r.Get("/", getUser)
 		r.Put("/", updateUser)
 	})
 	mux.Post("/user", createUser)
+
+	// equipment routes
+	mux.Route("/equip/{string}", func(r chi.Router) {
+		r.Get("/", getEquipment)
+	})
 	return mux
 }
 
@@ -45,5 +51,15 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	} else {
 		w.Write([]byte(strconv.FormatInt(id, 10)))
+	}
+}
+
+func getEquipment(w http.ResponseWriter, r *http.Request) {
+	equipments, err := dbhandler.FindEquipment(chi.URLParam(r, "string"))
+	if err == nil {
+		w.Write(equipments)
+	} else {
+		log.Println("[db-router] error search for user:", err)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }

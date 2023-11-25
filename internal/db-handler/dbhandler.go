@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -44,6 +45,7 @@ func FindUser(id string) ([]byte, error) {
 		rows.Scan(&u.Id, &u.Name, &u.IsAdmin, &u.RegistrationDate, &u.RFIDTag)
 		cnt += 1
 	}
+	defer rows.Close()
 	if cnt == 1 {
 		t, _ := json.Marshal(u)
 		return t, nil
@@ -58,7 +60,7 @@ func CreateUser(j []byte) int64 {
 	var u dbtypes.User
 	json.Unmarshal(j, &u)
 	log.Println("[db-handler] creating user for:", u.Name)
-	statement, _ := db.Prepare(
+	stmt, _ := db.Prepare(
 		`INSERT INTO User (
 			Name, 
 			isAdmin, 
@@ -66,7 +68,7 @@ func CreateUser(j []byte) int64 {
 			RFIDTag
 		) VALUES (?, ?, ?, ?)`,
 	)
-	res, err := statement.Exec(u.Name, u.IsAdmin, time.Now().UTC(), u.RFIDTag)
+	res, err := stmt.Exec(u.Name, u.IsAdmin, time.Now().UTC(), u.RFIDTag)
 	id, err := res.LastInsertId()
 	if err != nil {
 		log.Println("[db-handler] error creating user:", err)
@@ -81,8 +83,8 @@ func UpdateUser(id string, j []byte) bool {
 	var u dbtypes.User
 	json.Unmarshal(j, &u)
 	log.Println("[db-handler] updating user for:", u.Name)
-	statement, _ := db.Prepare(`UPDATE User SET Name=?, isAdmin=? WHERE id=?`)
-	_, err := statement.Exec(u.Name, u.IsAdmin, id)
+	stmt, _ := db.Prepare(`UPDATE User SET Name=?, isAdmin=? WHERE id=?`)
+	_, err := stmt.Exec(u.Name, u.IsAdmin, id)
 	if err != nil {
 		log.Println("[db-handler] error updating user:", err)
 		return false
@@ -92,9 +94,37 @@ func UpdateUser(id string, j []byte) bool {
 	}
 }
 
+func FindEquipment(s string) ([]byte, error) {
+	var e_slice []*dbtypes.Equipment
+	sub_string := strings.ToLower(s)
+	log.Println("[db-handler] looking database for sub-string:", sub_string)
+	stmt, _ := db.Prepare(
+		`SELECT * FROM equipment WHERE LOWER(Name) LIKE ?`,
+	)
+	rows, err := stmt.Query("%" + sub_string + "%")
+	if err != nil {
+		log.Println("[db-handler] error looking for sub-string:", err)
+		return []byte{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		e := &dbtypes.Equipment{}
+		rows.Scan(&e.Id, &e.Name, &e.IsInUse, &e.IsBlocked, &e.UserId)
+		e_slice = append(e_slice, e)
+	}
+	bytestream, err := json.Marshal(e_slice)
+	if err != nil {
+		log.Println("[db-handler] error converting to JSON byte stream:", err)
+		return []byte{}, err
+	} else {
+		log.Println("[db-handler] FindEquipment succeeded!")
+		return bytestream, nil
+	}
+}
+
 func populateDatabase() {
 	// create tables
-	statement, _ := db.Prepare(
+	stmt, _ := db.Prepare(
 		`CREATE TABLE IF NOT EXISTS user (
 			ID INTEGER PRIMARY KEY, 
 			Name TEXT, 
@@ -102,16 +132,39 @@ func populateDatabase() {
 			RegistrationDate TIMESTAMP, 
 			RFIDTag TEXT)`,
 	)
-	statement.Exec()
+	stmt.Exec()
+
+	stmt, _ = db.Prepare(
+		`CREATE TABLE IF NOT EXISTS equipment (
+			ID INTEGER PRIMARY KEY, 
+			Name TEXT, 
+			isInUse BOOL, 
+			isBlocked BOOL, 
+			user_ID INTEGER,
+			FOREIGN KEY (user_ID) REFERENCES user(ID)
+		)`,
+	)
+	stmt.Exec()
 
 	// create the first user
-	statement, _ = db.Prepare(
-		`INSERT INTO User (
+	stmt, _ = db.Prepare(
+		`INSERT INTO user (
 			Name, 
 			isAdmin, 
 			RegistrationDate, 
 			RFIDTag
 		) VALUES (?, ?, ?, ?)`,
 	)
-	statement.Exec("Matheus Souza", true, time.Now().UTC(), "putrealtaghere")
+	stmt.Exec("Matheus Souza", true, time.Now().UTC(), "putrealtaghere")
+
+	// create the first equipment
+	stmt, _ = db.Prepare(
+		`INSERT INTO equipment (
+			Name, 
+			isInUse, 
+			isBlocked, 
+			user_ID
+		) VALUES (?, ?, ?, ?)`,
+	)
+	stmt.Exec("Arduino Uno", false, false, 0)
 }
