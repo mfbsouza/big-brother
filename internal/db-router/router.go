@@ -13,9 +13,12 @@ import (
 func NewRouter() http.Handler {
 	mux := chi.NewRouter()
 	// user routes
-	mux.Route("/user/{token}", func(r chi.Router) {
+	mux.Route("/user/id/{token}", func(r chi.Router) {
 		r.Get("/", getUser)
 		r.Put("/", updateUser)
+	})
+	mux.Route("/user/tag/{tag}", func(r chi.Router) {
+		r.Get("/", getUserByTag)
 	})
 	mux.Post("/user", createUser)
 
@@ -41,6 +44,16 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	ok := dbhandler.UpdateUser(chi.URLParam(r, "token"), body)
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
+	}
+}
+
+func getUserByTag(w http.ResponseWriter, r *http.Request) {
+	u, e := dbhandler.FindUserByTag(chi.URLParam(r, "tag"))
+	if e == nil {
+		w.Write(u)
+	} else {
+		log.Println("[db-router] error searching for tag:", e)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 

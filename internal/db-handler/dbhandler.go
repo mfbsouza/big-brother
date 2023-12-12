@@ -56,6 +56,27 @@ func FindUser(id string) ([]byte, error) {
 	}
 }
 
+func FindUserByTag(tag string) ([]byte, error) {
+	var u dbtypes.User
+	var cnt int = 0
+	log.Println("[db-handler] looking database for tag:", tag)
+	q := `SELECT * FROM user WHERE RFIDTag=?`
+	rows, _ := db.Query(q, tag)
+	for rows.Next() {
+		rows.Scan(&u.Id, &u.Name, &u.IsAdmin, &u.RegistrationDate, &u.RFIDTag)
+		cnt += 1
+	}
+	defer rows.Close()
+	if cnt == 1 {
+		t, _ := json.Marshal(u)
+		return t, nil
+	} else if cnt == 0 {
+		return nil, errors.New("no user found")
+	} else {
+		return nil, errors.New("more than one row")
+	}
+}
+
 func CreateUser(j []byte) int64 {
 	var u dbtypes.User
 	json.Unmarshal(j, &u)
