@@ -155,7 +155,7 @@ func populateDatabase() {
 			RFIDTag
 		) VALUES (?, ?, ?, ?)`,
 	)
-	stmt.Exec("Matheus Souza", true, time.Now().UTC(), "putrealtaghere")
+	stmt.Exec("Matheus Souza", true, time.Now().UTC(), "5B320FE6")
 
 	// create the first equipment
 	stmt, _ = db.Prepare(
