@@ -13,6 +13,12 @@ import (
 	"github.com/mfbsouza/big-brother/internal/db-types"
 )
 
+const (
+	FIRST_U_NAME = "Matheus Souza"
+	FIRST_U_TAG  = "5B320FE6"
+	FIRST_E_NAME = "Arduino Uno"
+)
+
 var db *sql.DB
 
 func LoadDatabase(path string) {
@@ -68,6 +74,34 @@ func FindUserByTag(tag string) ([]byte, error) {
 	} else {
 		bytestream, _ := json.Marshal(u_slice[0])
 		return bytestream, nil
+	}
+}
+
+func DeleteUserById(id string) error {
+	if id == "1" {
+		return errors.New("Cannot delete the first user!")
+	}
+	stmt, _ := db.Prepare(`DELETE FROM user WHERE id=?`)
+	_, err := stmt.Exec(id)
+	if err != nil {
+		log.Println("[db-handler] Error while deleting a user:", err)
+		return errors.New("Error deleting user!")
+	} else {
+		return nil
+	}
+}
+
+func DeleteUserByTag(tag string) error {
+	if tag == FIRST_U_TAG {
+		return errors.New("Cannot delete the first user!")
+	}
+	stmt, _ := db.Prepare(`DELETE FROM user WHERE RFIDTag=?`)
+	_, err := stmt.Exec(tag)
+	if err != nil {
+		log.Println("[db-handler] Error while deleting a user:", err)
+		return errors.New("Error deleting user!")
+	} else {
+		return nil
 	}
 }
 
@@ -165,7 +199,7 @@ func populateDatabase() {
 			RFIDTag
 		) VALUES (?, ?, ?, ?)`,
 	)
-	stmt.Exec("Matheus Souza", true, time.Now().UTC(), "5B320FE6")
+	stmt.Exec(FIRST_U_NAME, true, time.Now().UTC(), FIRST_U_TAG)
 
 	// create the first equipment
 	stmt, _ = db.Prepare(
@@ -176,5 +210,5 @@ func populateDatabase() {
 			user_ID
 		) VALUES (?, ?, ?, ?)`,
 	)
-	stmt.Exec("Arduino Uno", false, false, 0)
+	stmt.Exec(FIRST_E_NAME, false, false, 0)
 }

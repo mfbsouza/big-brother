@@ -13,11 +13,13 @@ func NewRouter() http.Handler {
 	mux := chi.NewRouter()
 	// user routes
 	mux.Route("/user/id/{token}", func(r chi.Router) {
-		r.Get("/", getUser)
+		r.Get("/", getUserById)
 		r.Put("/", updateUser)
+		r.Delete("/", deleteUserById)
 	})
 	mux.Route("/user/tag/{tag}", func(r chi.Router) {
 		r.Get("/", getUserByTag)
+		r.Delete("/", deleteUserByTag)
 	})
 	mux.Post("/user", createUser)
 
@@ -28,7 +30,7 @@ func NewRouter() http.Handler {
 	return mux
 }
 
-func getUser(w http.ResponseWriter, r *http.Request) {
+func getUserById(w http.ResponseWriter, r *http.Request) {
 	u, e := dbhandler.FindUserById(chi.URLParam(r, "token"))
 	if e == nil {
 		w.Write(u)
@@ -45,11 +47,25 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func deleteUserById(w http.ResponseWriter, r *http.Request) {
+	e := dbhandler.DeleteUserById(chi.URLParam(r, "token"))
+	if e != nil {
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
 func getUserByTag(w http.ResponseWriter, r *http.Request) {
 	u, e := dbhandler.FindUserByTag(chi.URLParam(r, "tag"))
 	if e == nil {
 		w.Write(u)
 	} else {
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+func deleteUserByTag(w http.ResponseWriter, r *http.Request) {
+	e := dbhandler.DeleteUserByTag(chi.URLParam(r, "tag"))
+	if e != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
