@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	dbhandler "github.com/mfbsouza/big-brother/internal/db-handler"
+	"github.com/mfbsouza/big-brother/internal/db-handler"
 	"github.com/mfbsouza/big-brother/internal/db-router"
 )
 
@@ -24,7 +24,6 @@ func main() {
 	defer dbhandler.CloseDatebase()
 	dbhandler.LoadDatabase(db_path)
 
-	log.Println("[main] starting web server...")
+	log.Println("[main] Server is listening on port", portNumber[1:])
 	http.ListenAndServe(portNumber, router.NewRouter())
-	log.Println("[main] server is listening on port", portNumber[1:])
 }

@@ -17,70 +17,63 @@ var db *sql.DB
 
 func LoadDatabase(path string) {
 	var err error
-	// check if database path exists
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		os.Create(path)
+		log.Println("[db-handler] Populating database for the first time")
+		defer populateDatabase()
 	}
 
 	db, err = sql.Open("sqlite3", path)
 	if err != nil {
-		log.Println("[db-handler] error opening database", err)
+		log.Fatalln("[db-handler] Error opening database", err)
 	}
-
-	log.Println("populating database", path)
-	populateDatabase()
 }
 
 func CloseDatebase() {
 	db.Close()
 }
 
-func FindUser(id string) ([]byte, error) {
-	var u dbtypes.User
-	var cnt int = 0
-	log.Println("[db-handler] looking database for id:", id)
+func FindUserById(id string) ([]byte, error) {
+	var u_slice []*dbtypes.User
 	q := `SELECT * FROM user WHERE id=?`
 	rows, _ := db.Query(q, id)
 	for rows.Next() {
+		u := &dbtypes.User{}
 		rows.Scan(&u.Id, &u.Name, &u.IsAdmin, &u.RegistrationDate, &u.RFIDTag)
-		cnt += 1
+		u_slice = append(u_slice, u)
 	}
 	defer rows.Close()
-	if cnt == 1 {
-		t, _ := json.Marshal(u)
-		return t, nil
-	} else if cnt == 0 {
-		return nil, errors.New("no user found")
+	if len(u_slice) != 1 {
+		log.Println("[db-handler] Error while searching for user Id:", id)
+		return []byte{}, errors.New("Length of the user slice is different than 1")
 	} else {
-		return nil, errors.New("more than one row")
+		bytestream, _ := json.Marshal(u_slice[0])
+		return bytestream, nil
 	}
 }
 
 func FindUserByTag(tag string) ([]byte, error) {
-	var u dbtypes.User
-	var cnt int = 0
-	log.Println("[db-handler] looking database for tag:", tag)
+	var u_slice []*dbtypes.User
 	q := `SELECT * FROM user WHERE RFIDTag=?`
 	rows, _ := db.Query(q, tag)
 	for rows.Next() {
+		u := &dbtypes.User{}
 		rows.Scan(&u.Id, &u.Name, &u.IsAdmin, &u.RegistrationDate, &u.RFIDTag)
-		cnt += 1
+		u_slice = append(u_slice, u)
 	}
 	defer rows.Close()
-	if cnt == 1 {
-		t, _ := json.Marshal(u)
-		return t, nil
-	} else if cnt == 0 {
-		return nil, errors.New("no user found")
+	if len(u_slice) != 1 {
+		log.Println("[db-handler] Error while searching for user Tag:", tag)
+		return []byte{}, errors.New("Length of the user slice is different than 1")
 	} else {
-		return nil, errors.New("more than one row")
+		bytestream, _ := json.Marshal(u_slice[0])
+		return bytestream, nil
 	}
 }
 
 func CreateUser(j []byte) int64 {
 	var u dbtypes.User
 	json.Unmarshal(j, &u)
-	log.Println("[db-handler] creating user for:", u.Name)
 	stmt, _ := db.Prepare(
 		`INSERT INTO User (
 			Name, 
@@ -92,10 +85,9 @@ func CreateUser(j []byte) int64 {
 	res, err := stmt.Exec(u.Name, u.IsAdmin, time.Now().UTC(), u.RFIDTag)
 	id, err := res.LastInsertId()
 	if err != nil {
-		log.Println("[db-handler] error creating user:", err)
+		log.Println("[db-handler] Error while creating a new user:", err)
 		return 0
 	} else {
-		log.Println("[db-handler] user created in the database!")
 		return id
 	}
 }
@@ -103,14 +95,12 @@ func CreateUser(j []byte) int64 {
 func UpdateUser(id string, j []byte) bool {
 	var u dbtypes.User
 	json.Unmarshal(j, &u)
-	log.Println("[db-handler] updating user for:", u.Name)
 	stmt, _ := db.Prepare(`UPDATE User SET Name=?, isAdmin=? WHERE id=?`)
 	_, err := stmt.Exec(u.Name, u.IsAdmin, id)
 	if err != nil {
-		log.Println("[db-handler] error updating user:", err)
+		log.Println("[db-handler] Error while updating a user:", err)
 		return false
 	} else {
-		log.Println("[db-handler] user updated in the database!")
 		return true
 	}
 }
@@ -118,13 +108,11 @@ func UpdateUser(id string, j []byte) bool {
 func FindEquipment(s string) ([]byte, error) {
 	var e_slice []*dbtypes.Equipment
 	sub_string := strings.ToLower(s)
-	log.Println("[db-handler] looking database for sub-string:", sub_string)
 	stmt, _ := db.Prepare(
 		`SELECT * FROM equipment WHERE LOWER(Name) LIKE ?`,
 	)
 	rows, err := stmt.Query("%" + sub_string + "%")
 	if err != nil {
-		log.Println("[db-handler] error looking for sub-string:", err)
 		return []byte{}, err
 	}
 	defer rows.Close()
@@ -135,10 +123,11 @@ func FindEquipment(s string) ([]byte, error) {
 	}
 	bytestream, err := json.Marshal(e_slice)
 	if err != nil {
-		log.Println("[db-handler] error converting to JSON byte stream:", err)
+		log.Println("[db-handler] Error converting to JSON byte stream:", err)
 		return []byte{}, err
+	} else if len(e_slice) == 0 {
+		return []byte{}, errors.New("no equipment found!")
 	} else {
-		log.Println("[db-handler] FindEquipment succeeded!")
 		return bytestream, nil
 	}
 }

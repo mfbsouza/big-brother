@@ -2,7 +2,6 @@ package router
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -30,11 +29,10 @@ func NewRouter() http.Handler {
 }
 
 func getUser(w http.ResponseWriter, r *http.Request) {
-	u, e := dbhandler.FindUser(chi.URLParam(r, "token"))
+	u, e := dbhandler.FindUserById(chi.URLParam(r, "token"))
 	if e == nil {
 		w.Write(u)
 	} else {
-		log.Println("[db-router] error search for user:", e)
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
@@ -52,7 +50,6 @@ func getUserByTag(w http.ResponseWriter, r *http.Request) {
 	if e == nil {
 		w.Write(u)
 	} else {
-		log.Println("[db-router] error searching for tag:", e)
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
@@ -72,7 +69,6 @@ func getEquipment(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		w.Write(equipments)
 	} else {
-		log.Println("[db-router] error search for user:", err)
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
