@@ -225,6 +225,17 @@ func UpdateEquipment(id string, j []byte) error {
 	}
 }
 
+func DeleteEquipmentById(id string) error {
+	stmt, _ := db.Prepare(`DELETE FROM equipment WHERE id=?`)
+	_, err := stmt.Exec(id)
+	if err != nil {
+		log.Println("[db-handler] Error while deleting a equipment:", err)
+		return errors.New("Error deleting equipment!")
+	} else {
+		return nil
+	}
+}
+
 func populateDatabase() {
 	// create tables
 	stmt, _ := db.Prepare(

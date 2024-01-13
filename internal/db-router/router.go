@@ -27,6 +27,7 @@ func NewRouter() http.Handler {
 	mux.Route("/equip/id/{token}", func(r chi.Router) {
 		r.Get("/", getEquipmentById)
 		r.Put("/", updateEquipment)
+		r.Delete("/", deleteEquipmentById)
 	})
 	mux.Route("/equip/name/{string}", func(r chi.Router) {
 		r.Get("/", getEquipmentByString)
@@ -36,8 +37,8 @@ func NewRouter() http.Handler {
 }
 
 func getUserById(w http.ResponseWriter, r *http.Request) {
-	u, e := dbhandler.FindUserById(chi.URLParam(r, "token"))
-	if e != nil {
+	u, err := dbhandler.FindUserById(chi.URLParam(r, "token"))
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	} else {
 		w.Write(u)
@@ -53,15 +54,15 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteUserById(w http.ResponseWriter, r *http.Request) {
-	e := dbhandler.DeleteUserById(chi.URLParam(r, "token"))
-	if e != nil {
+	err := dbhandler.DeleteUserById(chi.URLParam(r, "token"))
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
 func getUserByTag(w http.ResponseWriter, r *http.Request) {
-	u, e := dbhandler.FindUserByTag(chi.URLParam(r, "tag"))
-	if e != nil {
+	u, err := dbhandler.FindUserByTag(chi.URLParam(r, "tag"))
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	} else {
 		w.Write(u)
@@ -69,8 +70,8 @@ func getUserByTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteUserByTag(w http.ResponseWriter, r *http.Request) {
-	e := dbhandler.DeleteUserByTag(chi.URLParam(r, "tag"))
-	if e != nil {
+	err := dbhandler.DeleteUserByTag(chi.URLParam(r, "tag"))
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
@@ -96,8 +97,8 @@ func createEquipment(w http.ResponseWriter, r *http.Request) {
 }
 
 func getEquipmentById(w http.ResponseWriter, r *http.Request) {
-	u, e := dbhandler.FindEquipmentById(chi.URLParam(r, "token"))
-	if e != nil {
+	u, err := dbhandler.FindEquipmentById(chi.URLParam(r, "token"))
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	} else {
 		w.Write(u)
@@ -118,5 +119,12 @@ func updateEquipment(w http.ResponseWriter, r *http.Request) {
 	err := dbhandler.UpdateEquipment(chi.URLParam(r, "token"), body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+	}
+}
+
+func deleteEquipmentById(w http.ResponseWriter, r *http.Request) {
+	err := dbhandler.DeleteEquipmentById(chi.URLParam(r, "token"))
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
