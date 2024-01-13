@@ -126,20 +126,60 @@ func CreateUser(j []byte) int64 {
 	}
 }
 
-func UpdateUser(id string, j []byte) bool {
+func UpdateUser(id string, j []byte) error {
 	var u dbtypes.User
 	json.Unmarshal(j, &u)
 	stmt, _ := db.Prepare(`UPDATE User SET Name=?, isAdmin=? WHERE id=?`)
 	_, err := stmt.Exec(u.Name, u.IsAdmin, id)
 	if err != nil {
 		log.Println("[db-handler] Error while updating a user:", err)
-		return false
+		return err
 	} else {
-		return true
+		return nil
 	}
 }
 
-func FindEquipment(s string) ([]byte, error) {
+func CreateEquipment(j []byte) (int64, error) {
+	var e dbtypes.Equipment
+	json.Unmarshal(j, &e)
+	stmt, _ := db.Prepare(
+		`INSERT INTO equipment (
+			Name, 
+			isInUse, 
+			isBlocked, 
+			user_ID
+		) VALUES (?, ?, ?, ?)`,
+	)
+	res, err := stmt.Exec(e.Name, false, false, 0)
+	id, err := res.LastInsertId()
+	if err != nil {
+		log.Println("[db-handler] Error while creating a new equipment:", err)
+		return 0, errors.New("error creating the equipment!")
+	} else {
+		return id, nil
+	}
+}
+
+func FindEquipmentById(id string) ([]byte, error) {
+	var e_slice []*dbtypes.Equipment
+	q := `SELECT * FROM equipment WHERE id=?`
+	rows, _ := db.Query(q, id)
+	for rows.Next() {
+		e := &dbtypes.Equipment{}
+		rows.Scan(&e.Id, &e.Name, &e.IsInUse, &e.IsBlocked, &e.UserId)
+		e_slice = append(e_slice, e)
+	}
+	defer rows.Close()
+	if len(e_slice) != 1 {
+		log.Println("[db-handler] Error while searching for equipment Id:", id)
+		return []byte{}, errors.New("Length of the equipment slice is different than 1")
+	} else {
+		bytestream, _ := json.Marshal(e_slice[0])
+		return bytestream, nil
+	}
+}
+
+func FindEquipmentByString(s string) ([]byte, error) {
 	var e_slice []*dbtypes.Equipment
 	sub_string := strings.ToLower(s)
 	stmt, _ := db.Prepare(
@@ -163,6 +203,25 @@ func FindEquipment(s string) ([]byte, error) {
 		return []byte{}, errors.New("no equipment found!")
 	} else {
 		return bytestream, nil
+	}
+}
+
+func UpdateEquipment(id string, j []byte) error {
+	var e dbtypes.Equipment
+	json.Unmarshal(j, &e)
+	stmt, _ := db.Prepare(
+		`UPDATE equipment SET
+			Name=?,
+			isInUse=?,
+			isBlocked=?,
+			user_ID=?
+		WHERE id=?`)
+	_, err := stmt.Exec(e.Name, e.IsInUse, e.IsBlocked, e.UserId, id)
+	if err != nil {
+		log.Println("[db-handler] Error while updating a user:", err)
+		return err
+	} else {
+		return nil
 	}
 }
 
