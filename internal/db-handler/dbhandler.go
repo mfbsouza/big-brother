@@ -236,26 +236,68 @@ func DeleteEquipmentById(id string) error {
 	}
 }
 
+func RentEquipment(id string, j []byte) error {
+	var u dbtypes.User
+	var blocked bool
+	json.Unmarshal(j, &u)
+
+	query := `SELECT isBlocked FROM equipment WHERE id=?`
+	rows, err := db.Query(query, id)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	rows.Scan(&blocked)
+	if blocked {
+		return errors.New("Cant rent a blocked equipment!")
+	}
+
+	insert := `INSERT INTO log (user_ID, equipment_ID, UsageDate) VALUES (?, ?, ?)`
+	db.Exec(insert, u.Id, id, time.Now().UTC())
+
+	update := `UPDATE equipment SET isInUse=?, user_ID=? WHERE id=?`
+	stmt, _ := db.Prepare(update)
+	_, err = stmt.Exec(true, u.Id, id)
+	if err != nil {
+		return errors.New("Cant update the equipment!")
+	}
+
+	return nil
+}
+
 func populateDatabase() {
 	// create tables
 	stmt, _ := db.Prepare(
 		`CREATE TABLE IF NOT EXISTS user (
-			ID INTEGER PRIMARY KEY, 
-			Name TEXT, 
-			isAdmin BOOL, 
-			RegistrationDate TIMESTAMP, 
+			ID INTEGER PRIMARY KEY,
+			Name TEXT,
+			isAdmin BOOL,
+			RegistrationDate TIMESTAMP,
 			RFIDTag TEXT)`,
 	)
 	stmt.Exec()
 
 	stmt, _ = db.Prepare(
 		`CREATE TABLE IF NOT EXISTS equipment (
-			ID INTEGER PRIMARY KEY, 
-			Name TEXT, 
-			isInUse BOOL, 
-			isBlocked BOOL, 
+			ID INTEGER PRIMARY KEY,
+			Name TEXT,
+			isInUse BOOL,
+			isBlocked BOOL,
 			user_ID INTEGER,
 			FOREIGN KEY (user_ID) REFERENCES user(ID)
+		)`,
+	)
+	stmt.Exec()
+
+	stmt, _ = db.Prepare(
+		`CREATE TABLE IF NOT EXISTS log (
+			ID INTEGER PRIMARY KEY,
+			user_ID INTEGER,
+			equipment_ID INTEGER,
+			UsageDate TIMESTAMP,
+			FOREIGN KEY (user_ID) REFERENCES user(ID),
+			FOREIGN KEY (equipment_ID) REFERENCES equipment(ID)
 		)`,
 	)
 	stmt.Exec()

@@ -11,28 +11,42 @@ import (
 
 func NewRouter() http.Handler {
 	mux := chi.NewRouter()
-	// user routes
-	mux.Route("/user/id/{token}", func(r chi.Router) {
-		r.Get("/", getUserById)
-		r.Put("/", updateUser)
-		r.Delete("/", deleteUserById)
-	})
-	mux.Route("/user/tag/{tag}", func(r chi.Router) {
-		r.Get("/", getUserByTag)
-		r.Delete("/", deleteUserByTag)
-	})
-	mux.Post("/user", createUser)
 
-	// equipment routes
-	mux.Route("/equip/id/{token}", func(r chi.Router) {
-		r.Get("/", getEquipmentById)
-		r.Put("/", updateEquipment)
-		r.Delete("/", deleteEquipmentById)
+	mux.Route("/user", func(r chi.Router) {
+		r.Post("/", createUser)
+
+		r.Route("/id/{token}", func(r chi.Router) {
+			r.Get("/", getUserById)
+			r.Put("/", updateUser)
+			r.Delete("/", deleteUserById)
+		})
+
+		r.Route("/tag/{tag}", func(r chi.Router) {
+			r.Get("/", getUserByTag)
+			r.Delete("/", deleteUserByTag)
+		})
 	})
-	mux.Route("/equip/name/{string}", func(r chi.Router) {
-		r.Get("/", getEquipmentByString)
+
+	mux.Route("/equip", func(r chi.Router) {
+		r.Post("/", createEquipment)
+
+		r.Route("/id/{token}", func(r chi.Router) {
+			r.Get("/", getEquipmentById)
+			r.Put("/", updateEquipment)
+			r.Delete("/", deleteEquipmentById)
+		})
+
+		r.Route("/name/{string}", func(r chi.Router) {
+			r.Get("/", getEquipmentByString)
+		})
 	})
-	mux.Post("/equip", createEquipment)
+
+	mux.Route("/request", func(r chi.Router) {
+		r.Route("/rent/{id}", func(r chi.Router) {
+			r.Post("/", rentEquipment)
+		})
+	})
+
 	return mux
 }
 
@@ -126,5 +140,13 @@ func deleteEquipmentById(w http.ResponseWriter, r *http.Request) {
 	err := dbhandler.DeleteEquipmentById(chi.URLParam(r, "token"))
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+func rentEquipment(w http.ResponseWriter, r *http.Request) {
+	body, _ := io.ReadAll(r.Body)
+	err := dbhandler.RentEquipment(chi.URLParam(r, "id"), body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
 	}
 }

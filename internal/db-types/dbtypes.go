@@ -19,3 +19,10 @@ type Equipment struct {
 	IsBlocked bool   `json:"blocked"`
 	UserId    int    `json:"user_id"`
 }
+
+type Log struct {
+	Id               int       `json:"id"`
+	UserId           int       `json:"user_id"`
+	EquipId          int       `json:"equip_id"`
+	RegistrationDate time.Time `json:"r_date"`
+}
