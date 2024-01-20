@@ -45,6 +45,10 @@ func NewRouter() http.Handler {
 		r.Route("/rent/{id}", func(r chi.Router) {
 			r.Post("/", rentEquipment)
 		})
+
+		r.Route("/return/{id}", func(r chi.Router) {
+			r.Post("/", returnEquipment)
+		})
 	})
 
 	return mux
@@ -146,6 +150,14 @@ func deleteEquipmentById(w http.ResponseWriter, r *http.Request) {
 func rentEquipment(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	err := dbhandler.RentEquipment(chi.URLParam(r, "id"), body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+}
+
+func returnEquipment(w http.ResponseWriter, r *http.Request) {
+	body, _ := io.ReadAll(r.Body)
+	err := dbhandler.ReturnEquipment(chi.URLParam(r, "id"), body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	}

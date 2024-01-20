@@ -242,13 +242,12 @@ func RentEquipment(id string, j []byte) error {
 	json.Unmarshal(j, &u)
 
 	query := `SELECT isBlocked FROM equipment WHERE id=?`
-	rows, err := db.Query(query, id)
+	row := db.QueryRow(query, id)
+	err := row.Scan(&blocked)
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
 
-	rows.Scan(&blocked)
 	if blocked {
 		return errors.New("Cant rent a blocked equipment!")
 	}
@@ -259,6 +258,32 @@ func RentEquipment(id string, j []byte) error {
 	update := `UPDATE equipment SET isInUse=?, user_ID=? WHERE id=?`
 	stmt, _ := db.Prepare(update)
 	_, err = stmt.Exec(true, u.Id, id)
+	if err != nil {
+		return errors.New("Cant update the equipment!")
+	}
+
+	return nil
+}
+
+func ReturnEquipment(id string, j []byte) error {
+	var u dbtypes.User
+	var inuse bool
+	json.Unmarshal(j, &u)
+
+	query := `SELECT isInUse FROM equipment WHERE id=?`
+	row := db.QueryRow(query, id)
+	err := row.Scan(&inuse)
+	if err != nil {
+		return err
+	}
+
+	if !inuse {
+		return errors.New("Cant return equipment that is not in use!")
+	}
+
+	update := `UPDATE equipment SET isInUse=?, user_ID=? WHERE id=?`
+	stmt, _ := db.Prepare(update)
+	_, err = stmt.Exec(false, 0, id)
 	if err != nil {
 		return errors.New("Cant update the equipment!")
 	}
