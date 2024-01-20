@@ -18,6 +18,8 @@ func NewRouter() http.Handler {
 	mux := chi.NewRouter()
 	mux.Get("/", home)
 	mux.Get("/about", about)
+	mux.Get("/inuse", inUse)
+	mux.Get("/free", free)
 	mux.Post("/login", signIn)
 	return mux
 }
@@ -43,6 +45,62 @@ func home(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			render.RenderTemplate(w, "home.html", equipments)
+		}
+	} else {
+		render.RenderTemplate(w, "login.html", nil)
+	}
+}
+
+func inUse(w http.ResponseWriter, r *http.Request) {
+	var equipments []dbtypes.Equipment
+	if user.VerifyClearance(r) {
+		requestURL := "http://localhost:3030/equip/inuse"
+		res, err := http.Get(requestURL)
+		if err != nil {
+			log.Println("[web-router] failed requesting data to the database", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		// } else if res.StatusCode != http.StatusOK {
+		// 	log.Println("[web-router] no free equipment!")
+		// 	w.WriteHeader(http.StatusBadRequest)
+		// 	return
+		} else {
+			body, _ := io.ReadAll(res.Body)
+			err := json.Unmarshal(body, &equipments)
+			if err != nil {
+				log.Println("[web-router] failed parsing JSON", err)
+				// w.WriteHeader(http.StatusBadRequest)
+				// return
+			}
+			render.RenderTemplate(w, "equipment-list.html", equipments)
+		}
+	} else {
+		render.RenderTemplate(w, "login.html", nil)
+	}
+}
+
+func free(w http.ResponseWriter, r *http.Request) {
+	var equipments []dbtypes.Equipment
+	if user.VerifyClearance(r) {
+		requestURL := "http://localhost:3030/equip/free"
+		res, err := http.Get(requestURL)
+		if err != nil {
+			log.Println("[web-router] failed requesting data to the database", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		// } else if res.StatusCode != http.StatusOK {
+		// 	log.Println("[web-router] no free equipment!")
+		// 	w.WriteHeader(http.StatusBadRequest)
+		// 	return
+		} else {
+			body, _ := io.ReadAll(res.Body)
+			err := json.Unmarshal(body, &equipments)
+			if err != nil {
+				log.Println("[web-router] failed parsing JSON", err)
+				// io.WriteString(w, "<h3>No free equipment!</h3>")
+				// return
+			}
+			render.RenderTemplate(w, "equipment-list.html", equipments)
 		}
 	} else {
 		render.RenderTemplate(w, "login.html", nil)
