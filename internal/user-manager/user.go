@@ -40,7 +40,7 @@ func ValidateUserToken(t string) bool {
 	if !exists {
 		log.Printf("[user] checking token %s in the database\n", t)
 		// TODO: variable base URL
-		requestURL := fmt.Sprintf("http://localhost:3030/user/%s", t)
+		requestURL := fmt.Sprintf("http://localhost:3030/user/id/%s", t)
 		res, err := http.Get(requestURL)
 		if err != nil {
 			log.Println("[user] failed requesting data to the database", err)

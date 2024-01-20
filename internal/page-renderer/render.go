@@ -16,7 +16,7 @@ type page struct {
 // page cache
 var pc = make(map[string]*page)
 
-func RenderTemplate(w http.ResponseWriter, f string) {
+func RenderTemplate(w http.ResponseWriter, f string, data any) {
 	// check if the required page is on the cache
 	_, exists := pc[f]
 	if !exists {
@@ -47,7 +47,7 @@ func RenderTemplate(w http.ResponseWriter, f string) {
 	}
 
 	p := pc[f]
-	err := p.template.Execute(w, nil)
+	err := p.template.Execute(w, data)
 	if err != nil {
 		log.Println("[render] error: failed to execute the template:", err)
 		return
