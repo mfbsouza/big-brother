@@ -344,6 +344,32 @@ func LogByEquipId(id string) ([]byte, error) {
 	}
 }
 
+func FindEquipmentsByInUse(inuse bool) ([]byte, error) {
+	var e_slice []*dbtypes.Equipment
+	stmt, _ := db.Prepare(
+		`SELECT * FROM equipment WHERE isInUse=?`,
+	)
+	rows, err := stmt.Query(inuse)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		e := &dbtypes.Equipment{}
+		rows.Scan(&e.Id, &e.Name, &e.IsInUse, &e.IsBlocked, &e.UserId)
+		e_slice = append(e_slice, e)
+	}
+	bytestream, err := json.Marshal(e_slice)
+	if err != nil {
+		log.Println("[db-handler] Error converting to JSON byte stream:", err)
+		return []byte{}, err
+	} else if len(e_slice) == 0 {
+		return []byte{}, errors.New("no equipment found!")
+	} else {
+		return bytestream, nil
+	}
+}
+
 func populateDatabase() {
 	// create tables
 	stmt, _ := db.Prepare(

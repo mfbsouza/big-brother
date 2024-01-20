@@ -29,6 +29,8 @@ func NewRouter() http.Handler {
 
 	mux.Route("/equip", func(r chi.Router) {
 		r.Post("/", createEquipment)
+		r.Get("/inuse", getEquipmentsInUse)
+		r.Get("/free", getEquipmentsNotInUse)
 
 		r.Route("/id/{token}", func(r chi.Router) {
 			r.Get("/", getEquipmentById)
@@ -187,5 +189,23 @@ func getLogByEquipId(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	} else {
 		w.Write(logs)
+	}
+}
+
+func getEquipmentsInUse(w http.ResponseWriter, r *http.Request) {
+	equipments, err := dbhandler.FindEquipmentsByInUse(true)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+	} else {
+		w.Write(equipments)
+	}
+}
+
+func getEquipmentsNotInUse(w http.ResponseWriter, r *http.Request) {
+	equipments, err := dbhandler.FindEquipmentsByInUse(false)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+	} else {
+		w.Write(equipments)
 	}
 }
