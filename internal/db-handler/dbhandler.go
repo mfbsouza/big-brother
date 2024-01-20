@@ -238,18 +238,19 @@ func DeleteEquipmentById(id string) error {
 
 func RentEquipment(id string, j []byte) error {
 	var u dbtypes.User
+	var inuse bool
 	var blocked bool
 	json.Unmarshal(j, &u)
 
-	query := `SELECT isBlocked FROM equipment WHERE id=?`
+	query := `SELECT isInUse, isBlocked FROM equipment WHERE id=?`
 	row := db.QueryRow(query, id)
-	err := row.Scan(&blocked)
+	err := row.Scan(&inuse, &blocked)
 	if err != nil {
 		return err
 	}
 
-	if blocked {
-		return errors.New("Cant rent a blocked equipment!")
+	if blocked || inuse {
+		return errors.New("Cant rent a blocked or in-use equipment!")
 	}
 
 	insert := `INSERT INTO log (user_ID, equipment_ID, UsageDate) VALUES (?, ?, ?)`
@@ -289,6 +290,58 @@ func ReturnEquipment(id string, j []byte) error {
 	}
 
 	return nil
+}
+
+func LogByUserId(id string) ([]byte, error) {
+	var l_slice []*dbtypes.Log
+	stmt, _ := db.Prepare(
+		`SELECT * FROM log WHERE user_ID=?`,
+	)
+	rows, err := stmt.Query(id)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		l := &dbtypes.Log{}
+		rows.Scan(&l.Id, &l.UserId, &l.EquipId, &l.UsageDate)
+		l_slice = append(l_slice, l)
+	}
+	bytestream, err := json.Marshal(l_slice)
+	if err != nil {
+		log.Println("[db-handler] Error converting to JSON byte stream:", err)
+		return []byte{}, err
+	} else if len(l_slice) == 0 {
+		return []byte{}, errors.New("no log found!")
+	} else {
+		return bytestream, nil
+	}
+}
+
+func LogByEquipId(id string) ([]byte, error) {
+	var l_slice []*dbtypes.Log
+	stmt, _ := db.Prepare(
+		`SELECT * FROM log WHERE equipment_ID=?`,
+	)
+	rows, err := stmt.Query(id)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		l := &dbtypes.Log{}
+		rows.Scan(&l.Id, &l.UserId, &l.EquipId, &l.UsageDate)
+		l_slice = append(l_slice, l)
+	}
+	bytestream, err := json.Marshal(l_slice)
+	if err != nil {
+		log.Println("[db-handler] Error converting to JSON byte stream:", err)
+		return []byte{}, err
+	} else if len(l_slice) == 0 {
+		return []byte{}, errors.New("no log found!")
+	} else {
+		return bytestream, nil
+	}
 }
 
 func populateDatabase() {

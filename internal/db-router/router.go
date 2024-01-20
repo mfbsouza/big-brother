@@ -49,6 +49,15 @@ func NewRouter() http.Handler {
 		r.Route("/return/{id}", func(r chi.Router) {
 			r.Post("/", returnEquipment)
 		})
+
+		r.Route("/log", func(r chi.Router) {
+			r.Route("/user/{id}", func(r chi.Router) {
+				r.Get("/", getLogByUserId)
+			})
+			r.Route("/equip/{id}", func(r chi.Router) {
+				r.Get("/", getLogByEquipId)
+			})
+		})
 	})
 
 	return mux
@@ -160,5 +169,23 @@ func returnEquipment(w http.ResponseWriter, r *http.Request) {
 	err := dbhandler.ReturnEquipment(chi.URLParam(r, "id"), body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+	}
+}
+
+func getLogByUserId(w http.ResponseWriter, r *http.Request) {
+	logs, err := dbhandler.LogByUserId(chi.URLParam(r, "id"))
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+	} else {
+		w.Write(logs)
+	}
+}
+
+func getLogByEquipId(w http.ResponseWriter, r *http.Request) {
+	logs, err := dbhandler.LogByEquipId(chi.URLParam(r, "id"))
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+	} else {
+		w.Write(logs)
 	}
 }

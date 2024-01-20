@@ -21,8 +21,8 @@ type Equipment struct {
 }
 
 type Log struct {
-	Id               int       `json:"id"`
-	UserId           int       `json:"user_id"`
-	EquipId          int       `json:"equip_id"`
-	RegistrationDate time.Time `json:"r_date"`
+	Id        int       `json:"id"`
+	UserId    int       `json:"user_id"`
+	EquipId   int       `json:"equip_id"`
+	UsageDate time.Time `json:"r_date"`
 }
