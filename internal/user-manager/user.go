@@ -16,6 +16,7 @@ const cookie_name = "session_token"
 
 type User struct {
 	Name string
+	IsAdmin bool
 }
 
 type Session struct {
@@ -53,6 +54,7 @@ func ValidateUserToken(t string) bool {
 			json.Unmarshal(body, &u)
 			uc[t] = &User{
 				Name: u.Name,
+				IsAdmin: u.IsAdmin,
 			}
 			log.Printf("[user] Found username %s! Adding to the cache\n",
 				u.Name)
@@ -61,6 +63,15 @@ func ValidateUserToken(t string) bool {
 	}
 	log.Printf("[user] token %s found in user cache\n", t)
 	return exists
+}
+
+func IsAdmin(r *http.Request) bool {
+	c, err := r.Cookie(cookie_name)
+	if err != nil {
+		return false
+	}
+	token := sc[c.Value].Token
+	return uc[token].IsAdmin
 }
 
 func ValidateSessionId(id string) bool {

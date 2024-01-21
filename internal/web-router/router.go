@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"io"
 	"encoding/json"
+	"bytes"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mfbsouza/big-brother/internal/page-renderer"
@@ -20,8 +21,60 @@ func NewRouter() http.Handler {
 	mux.Get("/about", about)
 	mux.Get("/inuse", inUse)
 	mux.Get("/free", free)
+	mux.Get("/insert", insertPage)
 	mux.Post("/login", signIn)
+	mux.Post("/insert", insertData)
 	return mux
+}
+
+func insertPage(w http.ResponseWriter, r *http.Request) {
+	if user.VerifyClearance(r) && user.IsAdmin(r) {
+		render.RenderTemplate(w, "new-equip.html", nil)
+	} else {
+		render.RenderTemplate(w, "login.html", nil)
+	}
+}
+
+func insertData(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		log.Println("[web-router] failed parsing form:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	name := r.FormValue("equip-name")
+	if len(name) == 0 {
+		log.Println("[web-router] failed reading 'equip-name' key from form")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	e := dbtypes.Equipment {
+		Id: 0,
+		Name: name,
+		IsInUse: false,
+		IsBlocked: false,
+		UserId: 0,
+	}
+	bytestream, err := json.Marshal(e)
+	if err != nil {
+		log.Println("[web-router] failed converting struct to json string")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	requestURL := "http://localhost:3030/equip"
+	res, err := http.Post(requestURL, "application/json", bytes.NewBuffer(bytestream))
+	if err != nil {
+		log.Println("[web-router] failed doing post call to create new equipment")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		log.Println("[web-router] failed to create new equipment at the database")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+		io.WriteString(w, "<h3>Success! Equipment was added to the database</h3>")
+	}
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
@@ -33,16 +86,17 @@ func home(w http.ResponseWriter, r *http.Request) {
 			log.Println("[web-router] failed requesting data to the database", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
-		} else if res.StatusCode != http.StatusOK {
-			log.Println("[web-router] no free equipment!")
-			w.WriteHeader(http.StatusBadRequest)
-			return
+		// } else if res.StatusCode != http.StatusOK {
+		// 	log.Println("[web-router] no free equipment!")
+		// 	w.WriteHeader(http.StatusBadRequest)
+		// 	return
 		} else {
 			body, _ := io.ReadAll(res.Body)
 			err := json.Unmarshal(body, &equipments)
 			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
+				log.Println("[web-router] failed parsing JSON", err)
+				// w.WriteHeader(http.StatusBadRequest)
+				// return
 			}
 			render.RenderTemplate(w, "home.html", equipments)
 		}
