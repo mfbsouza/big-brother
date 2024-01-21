@@ -74,6 +74,14 @@ func IsAdmin(r *http.Request) bool {
 	return uc[token].IsAdmin
 }
 
+func GetSessionId(r *http.Request) string {
+	c, err := r.Cookie(cookie_name)
+	if err != nil {
+		return ""
+	}
+	return c.Value
+}
+
 func ValidateSessionId(id string) bool {
 	// check if the session is present in the cache
 	_, exists := sc[id]
@@ -96,8 +104,8 @@ func CreateSessionId(t string) *Session {
 	return sc[sessionId]
 }
 
-func DeleteSessionId(id string) {
-	sc[id] = nil
+func DeleteSessionId(sId string) {
+	delete(sc, sId)
 }
 
 func VerifyClearance(r *http.Request) bool {

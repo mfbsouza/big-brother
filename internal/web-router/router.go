@@ -22,6 +22,7 @@ func NewRouter() http.Handler {
 	mux.Get("/about", about)
 	mux.Get("/inuse", inUse)
 	mux.Get("/free", free)
+	mux.Get("/logout", logout)
 	mux.Get("/equip/insert", insertPage)
 	mux.Get("/equip/remove", removePage)
 	mux.Get("/equip/block", blockPage)
@@ -43,6 +44,16 @@ func NewRouter() http.Handler {
 	mux.Post("/log/equip", logEquipData)
 	mux.Post("/search", searchData)
 	return mux
+}
+
+func logout(w http.ResponseWriter, r *http.Request) {
+	if user.VerifyClearance(r) {
+		sId := user.GetSessionId(r)
+		user.DeleteSessionId(sId)
+		render.RenderTemplate(w, "login.html", nil)
+	} else {
+		render.RenderTemplate(w, "login.html", nil)
+	}
 }
 
 func updateUserPage(w http.ResponseWriter, r *http.Request) {
@@ -735,7 +746,8 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 	// check if the user is already logged in
 	if user.VerifyClearance(r) {
 		log.Println("[web-router] user already logged in")
-		w.WriteHeader(http.StatusBadRequest)
+		// w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "<h3>User already logged in</h3>")
 		return
 	}
 
