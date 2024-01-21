@@ -25,11 +25,21 @@ func NewRouter() http.Handler {
 	mux.Get("/equip/insert", insertPage)
 	mux.Get("/equip/remove", removePage)
 	mux.Get("/user/remove", removeUserPage)
+	mux.Get("/log/user", logUserPage)
 	mux.Post("/login", signIn)
 	mux.Post("/equip/insert", insertData)
 	mux.Post("/equip/remove", removeData)
 	mux.Post("/user/remove", removeUserData)
+	mux.Post("/log/user", logUserData)
 	return mux
+}
+
+func logUserPage(w http.ResponseWriter, r *http.Request) {
+	if user.VerifyClearance(r) {
+		render.RenderTemplate(w, "log-user.html", nil)
+	} else {
+		render.RenderTemplate(w, "login.html", nil)
+	}
 }
 
 func removeUserPage(w http.ResponseWriter, r *http.Request) {
@@ -179,6 +189,39 @@ func removeUserData(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		io.WriteString(w, "<h3>Success! User was removed from the database</h3>")
+	}
+}
+
+func logUserData(w http.ResponseWriter, r *http.Request) {
+	var logs []dbtypes.Log
+	err := r.ParseForm()
+	if err != nil {
+		log.Println("[web-router] failed parsing form:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	id := r.FormValue("id-user")
+	if len(id) == 0 {
+		log.Println("[web-router] failed reading 'id-user' key from form")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	requestURL := fmt.Sprintf("http://localhost:3030/request/log/user/%s", id)
+	res, err := http.Get(requestURL)
+	if err != nil {
+		log.Println("[web-router] failed requesting data to the database", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+		body, _ := io.ReadAll(res.Body)
+		err := json.Unmarshal(body, &logs)
+		if err != nil {
+			log.Println("[web-router] failed parsing JSON", err)
+			// w.WriteHeader(http.StatusBadRequest)
+			// return
+		}
+		render.SimpleRenderTemplate(w, "log-list.html", logs)
 	}
 }
 

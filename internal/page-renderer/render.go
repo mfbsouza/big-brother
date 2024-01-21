@@ -84,3 +84,19 @@ func loadPage(f string) error {
 
 	return nil
 }
+
+func SimpleRenderTemplate(w http.ResponseWriter, f string, data any) {
+	path := fmt.Sprintf("./templates/%s", f)
+
+	// load templates from disk
+	tmpl, err := template.ParseFiles(path)
+	if err != nil {
+		log.Println("[render] SimpleRender: failed to parse the template:", err)
+		return
+	}
+	err = tmpl.Execute(w, data)
+	if err != nil {
+		log.Println("[render] SimpleRender: failed to execute the template:", err)
+		return
+	}
+}
