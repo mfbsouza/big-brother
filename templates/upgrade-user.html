@@ -1,0 +1,18 @@
+
+{{template "base" .}}
+
+{{define "content"}}
+<div class="container py-4 px-3 mx-auto" id="id-user-input-div">
+	<form id="form-insert-equip" hx-post="/user/admin" hx-indicator="#spinner" hx-target="#id-user-input-div" autocomplete="off">
+		<div class="mb-3">
+		<label for="id-user-input" class="form-label">Insert the ID of the user to become a Administrator:</label>
+		<input type="text" name="id-user" class="form-control" id="id-user-input">
+		</div>
+		<button type="submit" class="btn btn-primary">
+		<span class="spinner-border spinner-border-sm htmx-indicator" id="spinner" role="status"></span>
+			Go!
+		</button>
+	</form>
+</div>
+
+{{end}}

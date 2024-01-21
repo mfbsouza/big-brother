@@ -27,6 +27,7 @@ func NewRouter() http.Handler {
 	mux.Get("/equip/block", blockPage)
 	mux.Get("/equip/unblock", unblockPage)
 	mux.Get("/user/remove", removeUserPage)
+	mux.Get("/user/admin", adminUserPage)
 	mux.Get("/log/user", logUserPage)
 	mux.Get("/log/equip", logEquipPage)
 	mux.Post("/login", signIn)
@@ -35,10 +36,21 @@ func NewRouter() http.Handler {
 	mux.Post("/equip/block", blockData)
 	mux.Post("/equip/unblock", unblockData)
 	mux.Post("/user/remove", removeUserData)
+	mux.Post("/user/admin", adminUserData)
 	mux.Post("/log/user", logUserData)
 	mux.Post("/log/equip", logEquipData)
 	mux.Post("/search", searchData)
 	return mux
+}
+
+func adminUserPage(w http.ResponseWriter, r *http.Request) {
+	if user.VerifyClearance(r) && user.IsAdmin(r) {
+		render.RenderTemplate(w, "upgrade-user.html", nil)
+	} else if !user.IsAdmin(r) {
+		render.RenderTemplate(w, "permission-error.html", nil)
+	} else {
+		render.RenderTemplate(w, "login.html", nil)
+	}
 }
 
 func logEquipPage(w http.ResponseWriter, r *http.Request) {
@@ -399,12 +411,85 @@ func removeUserData(w http.ResponseWriter, r *http.Request) {
 
 	if res.StatusCode != http.StatusOK {
 		log.Println("[web-router] failed to remove user from the database")
-		w.WriteHeader(http.StatusBadRequest)
+		// w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "<h3>Error! Cannot remove User from the database</h3>")
 		return
 	} else {
 		io.WriteString(w, "<h3>Success! User was removed from the database</h3>")
 	}
 }
+
+func adminUserData(w http.ResponseWriter, r *http.Request) {
+	var u dbtypes.User
+	err := r.ParseForm()
+	if err != nil {
+		log.Println("[web-router] failed parsing form:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	id := r.FormValue("id-user")
+	if len(id) == 0 {
+		log.Println("[web-router] failed reading 'id-user' key from form")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	requestURL := fmt.Sprintf("http://localhost:3030/user/id/%s", id)
+	res, err := http.Get(requestURL)
+	if err != nil {
+		log.Println("[web-router] failed doing GET call to read user")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		log.Println("[web-router] failed to read user at the database")
+		// w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "<h3>Error! User does not exists in the database</h3>")
+		return
+	} else {
+		body, _ := io.ReadAll(res.Body)
+		json.Unmarshal(body, &u)
+	}
+
+	if u.IsAdmin {
+		io.WriteString(w, "<h3>User is already a Administrator</h3>")
+		return
+	}
+	
+	u.IsAdmin = true
+	bytestream, err := json.Marshal(u)
+	if err != nil {
+		log.Println("[web-router] failed converting struct to json string")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	req, err := http.NewRequest("PUT", requestURL, bytes.NewBuffer(bytestream))
+	if err != nil {
+		log.Println("[web-router] Error creating request", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	res, err = client.Do(req)
+	if err != nil {
+		log.Println("[web-router] Error making the request", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		log.Println("[web-router] failed to update user from the database")
+		// w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "<h3>Error! Failed updating database</h3>")
+		return
+	} else {
+		io.WriteString(w, "<h3>Success! User is now a Administrator</h3>")
+	}
+}
+
 
 func logUserData(w http.ResponseWriter, r *http.Request) {
 	var logs []dbtypes.Log
