@@ -15,7 +15,7 @@ import (
 const cookie_name = "session_token"
 
 type User struct {
-	Name string
+	Name    string
 	IsAdmin bool
 }
 
@@ -53,7 +53,7 @@ func ValidateUserToken(t string) bool {
 			body, _ := io.ReadAll(res.Body)
 			json.Unmarshal(body, &u)
 			uc[t] = &User{
-				Name: u.Name,
+				Name:    u.Name,
 				IsAdmin: u.IsAdmin,
 			}
 			log.Printf("[user] Found username %s! Adding to the cache\n",

@@ -1,17 +1,17 @@
 package router
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
-	"io"
-	"encoding/json"
-	"bytes"
-	"fmt"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/mfbsouza/big-brother/internal/db-types"
 	"github.com/mfbsouza/big-brother/internal/page-renderer"
 	"github.com/mfbsouza/big-brother/internal/user-manager"
-	"github.com/mfbsouza/big-brother/internal/db-types"
 )
 
 // function NewRouter creates a http.Handler with all
@@ -28,6 +28,7 @@ func NewRouter() http.Handler {
 	mux.Get("/equip/unblock", unblockPage)
 	mux.Get("/user/remove", removeUserPage)
 	mux.Get("/user/admin", adminUserPage)
+	mux.Get("/user/update", updateUserPage)
 	mux.Get("/log/user", logUserPage)
 	mux.Get("/log/equip", logEquipPage)
 	mux.Post("/login", signIn)
@@ -37,10 +38,19 @@ func NewRouter() http.Handler {
 	mux.Post("/equip/unblock", unblockData)
 	mux.Post("/user/remove", removeUserData)
 	mux.Post("/user/admin", adminUserData)
+	mux.Post("/user/update", updateUserData)
 	mux.Post("/log/user", logUserData)
 	mux.Post("/log/equip", logEquipData)
 	mux.Post("/search", searchData)
 	return mux
+}
+
+func updateUserPage(w http.ResponseWriter, r *http.Request) {
+	if user.VerifyClearance(r) {
+		render.RenderTemplate(w, "update-user.html", nil)
+	} else {
+		render.RenderTemplate(w, "login.html", nil)
+	}
 }
 
 func adminUserPage(w http.ResponseWriter, r *http.Request) {
@@ -141,10 +151,10 @@ func searchData(w http.ResponseWriter, r *http.Request) {
 			log.Println("[web-router] failed requesting data to the database", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
-		// } else if res.StatusCode != http.StatusOK {
-		// 	log.Println("[web-router] no free equipment!")
-		// 	w.WriteHeader(http.StatusBadRequest)
-		// 	return
+			// } else if res.StatusCode != http.StatusOK {
+			// 	log.Println("[web-router] no free equipment!")
+			// 	w.WriteHeader(http.StatusBadRequest)
+			// 	return
 		} else {
 			body, _ := io.ReadAll(res.Body)
 			err := json.Unmarshal(body, &equipments)
@@ -190,12 +200,12 @@ func unblockData(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(res.Body)
 		json.Unmarshal(body, &e)
 	}
-	
+
 	if !e.IsBlocked {
 		io.WriteString(w, "<h3>Equipment already unblocked</h3>")
 		return
 	}
-	
+
 	e.IsBlocked = false
 	bytestream, err := json.Marshal(e)
 	if err != nil {
@@ -264,7 +274,7 @@ func blockData(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "<h3>Equipment already blocked</h3>")
 		return
 	}
-	
+
 	e.IsBlocked = true
 	bytestream, err := json.Marshal(e)
 	if err != nil {
@@ -311,12 +321,12 @@ func insertData(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	e := dbtypes.Equipment {
-		Id: 0,
-		Name: name,
-		IsInUse: false,
+	e := dbtypes.Equipment{
+		Id:        0,
+		Name:      name,
+		IsInUse:   false,
 		IsBlocked: false,
-		UserId: 0,
+		UserId:    0,
 	}
 	bytestream, err := json.Marshal(e)
 	if err != nil {
@@ -419,6 +429,83 @@ func removeUserData(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func updateUserData(w http.ResponseWriter, r *http.Request) {
+	var u dbtypes.User
+	err := r.ParseForm()
+	if err != nil {
+		log.Println("[web-router] failed parsing form:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	id := r.FormValue("id-user")
+	if len(id) == 0 {
+		log.Println("[web-router] failed reading 'id-user' key from form")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	name := r.FormValue("name-user")
+	if len(name) == 0 {
+		log.Println("[web-router] failed reading 'name-user' key from form")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	requestURL := fmt.Sprintf("http://localhost:3030/user/id/%s", id)
+	res, err := http.Get(requestURL)
+	if err != nil {
+		log.Println("[web-router] failed doing GET call to read user")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		log.Println("[web-router] failed to read user at the database")
+		// w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "<h3>Error! User does not exists in the database</h3>")
+		return
+	} else {
+		body, _ := io.ReadAll(res.Body)
+		json.Unmarshal(body, &u)
+	}
+
+	if u.IsAdmin && !user.IsAdmin(r) {
+		io.WriteString(w, "<h3>You don't have permissions to modify Administrator data!</h3>")
+		return
+	}
+
+	u.Name = name
+	bytestream, err := json.Marshal(u)
+	if err != nil {
+		log.Println("[web-router] failed converting struct to json string")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	req, err := http.NewRequest("PUT", requestURL, bytes.NewBuffer(bytestream))
+	if err != nil {
+		log.Println("[web-router] Error creating request", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	res, err = client.Do(req)
+	if err != nil {
+		log.Println("[web-router] Error making the request", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		log.Println("[web-router] failed to update user from the database")
+		// w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, "<h3>Error! Failed updating database</h3>")
+		return
+	} else {
+		io.WriteString(w, "<h3>Success! User data updated</h3>")
+	}
+}
+
 func adminUserData(w http.ResponseWriter, r *http.Request) {
 	var u dbtypes.User
 	err := r.ParseForm()
@@ -455,7 +542,7 @@ func adminUserData(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "<h3>User is already a Administrator</h3>")
 		return
 	}
-	
+
 	u.IsAdmin = true
 	bytestream, err := json.Marshal(u)
 	if err != nil {
@@ -489,7 +576,6 @@ func adminUserData(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "<h3>Success! User is now a Administrator</h3>")
 	}
 }
-
 
 func logUserData(w http.ResponseWriter, r *http.Request) {
 	var logs []dbtypes.Log
@@ -566,10 +652,10 @@ func home(w http.ResponseWriter, r *http.Request) {
 			log.Println("[web-router] failed requesting data to the database", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
-		// } else if res.StatusCode != http.StatusOK {
-		// 	log.Println("[web-router] no free equipment!")
-		// 	w.WriteHeader(http.StatusBadRequest)
-		// 	return
+			// } else if res.StatusCode != http.StatusOK {
+			// 	log.Println("[web-router] no free equipment!")
+			// 	w.WriteHeader(http.StatusBadRequest)
+			// 	return
 		} else {
 			body, _ := io.ReadAll(res.Body)
 			err := json.Unmarshal(body, &equipments)
@@ -594,10 +680,10 @@ func inUse(w http.ResponseWriter, r *http.Request) {
 			log.Println("[web-router] failed requesting data to the database", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
-		// } else if res.StatusCode != http.StatusOK {
-		// 	log.Println("[web-router] no free equipment!")
-		// 	w.WriteHeader(http.StatusBadRequest)
-		// 	return
+			// } else if res.StatusCode != http.StatusOK {
+			// 	log.Println("[web-router] no free equipment!")
+			// 	w.WriteHeader(http.StatusBadRequest)
+			// 	return
 		} else {
 			body, _ := io.ReadAll(res.Body)
 			err := json.Unmarshal(body, &equipments)
@@ -622,10 +708,10 @@ func free(w http.ResponseWriter, r *http.Request) {
 			log.Println("[web-router] failed requesting data to the database", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
-		// } else if res.StatusCode != http.StatusOK {
-		// 	log.Println("[web-router] no free equipment!")
-		// 	w.WriteHeader(http.StatusBadRequest)
-		// 	return
+			// } else if res.StatusCode != http.StatusOK {
+			// 	log.Println("[web-router] no free equipment!")
+			// 	w.WriteHeader(http.StatusBadRequest)
+			// 	return
 		} else {
 			body, _ := io.ReadAll(res.Body)
 			err := json.Unmarshal(body, &equipments)
