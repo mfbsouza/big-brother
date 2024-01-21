@@ -24,12 +24,16 @@ func NewRouter() http.Handler {
 	mux.Get("/free", free)
 	mux.Get("/equip/insert", insertPage)
 	mux.Get("/equip/remove", removePage)
+	mux.Get("/equip/block", blockPage)
+	mux.Get("/equip/unblock", unblockPage)
 	mux.Get("/user/remove", removeUserPage)
 	mux.Get("/log/user", logUserPage)
 	mux.Get("/log/equip", logEquipPage)
 	mux.Post("/login", signIn)
 	mux.Post("/equip/insert", insertData)
 	mux.Post("/equip/remove", removeData)
+	mux.Post("/equip/block", blockData)
+	mux.Post("/equip/unblock", unblockData)
 	mux.Post("/user/remove", removeUserData)
 	mux.Post("/log/user", logUserData)
 	mux.Post("/log/equip", logEquipData)
@@ -62,6 +66,26 @@ func removeUserPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func unblockPage(w http.ResponseWriter, r *http.Request) {
+	if user.VerifyClearance(r) && user.IsAdmin(r) {
+		render.RenderTemplate(w, "unblock-equip.html", nil)
+	} else if !user.IsAdmin(r) {
+		render.RenderTemplate(w, "permission-error.html", nil)
+	} else {
+		render.RenderTemplate(w, "login.html", nil)
+	}
+}
+
+func blockPage(w http.ResponseWriter, r *http.Request) {
+	if user.VerifyClearance(r) && user.IsAdmin(r) {
+		render.RenderTemplate(w, "block-equip.html", nil)
+	} else if !user.IsAdmin(r) {
+		render.RenderTemplate(w, "permission-error.html", nil)
+	} else {
+		render.RenderTemplate(w, "login.html", nil)
+	}
+}
+
 func removePage(w http.ResponseWriter, r *http.Request) {
 	if user.VerifyClearance(r) && user.IsAdmin(r) {
 		render.RenderTemplate(w, "del-equip.html", nil)
@@ -79,6 +103,144 @@ func insertPage(w http.ResponseWriter, r *http.Request) {
 		render.RenderTemplate(w, "permission-error.html", nil)
 	} else {
 		render.RenderTemplate(w, "login.html", nil)
+	}
+}
+
+func unblockData(w http.ResponseWriter, r *http.Request) {
+	var e dbtypes.Equipment
+	err := r.ParseForm()
+	if err != nil {
+		log.Println("[web-router] failed parsing form:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	id := r.FormValue("id-equip")
+	if len(id) == 0 {
+		log.Println("[web-router] failed reading 'id-equip' key from form")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	requestURL := fmt.Sprintf("http://localhost:3030/equip/id/%s", id)
+	res, err := http.Get(requestURL)
+	if err != nil {
+		log.Println("[web-router] failed doing get call to read equipment")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		log.Println("[web-router] failed to read equipment at the database")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+		body, _ := io.ReadAll(res.Body)
+		json.Unmarshal(body, &e)
+	}
+	
+	if !e.IsBlocked {
+		io.WriteString(w, "<h3>Equipment already unblocked</h3>")
+		return
+	}
+	
+	e.IsBlocked = false
+	bytestream, err := json.Marshal(e)
+	if err != nil {
+		log.Println("[web-router] failed converting struct to json string")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	req, err := http.NewRequest("PUT", requestURL, bytes.NewBuffer(bytestream))
+	if err != nil {
+		log.Println("[web-router] Error creating request", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	res, err = client.Do(req)
+	if err != nil {
+		log.Println("[web-router] Error making the request", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		log.Println("[web-router] failed to update equipment from the database")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+		io.WriteString(w, "<h3>Success! Equipment was unblocked</h3>")
+	}
+}
+
+func blockData(w http.ResponseWriter, r *http.Request) {
+	var e dbtypes.Equipment
+	err := r.ParseForm()
+	if err != nil {
+		log.Println("[web-router] failed parsing form:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	id := r.FormValue("id-equip")
+	if len(id) == 0 {
+		log.Println("[web-router] failed reading 'id-equip' key from form")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	requestURL := fmt.Sprintf("http://localhost:3030/equip/id/%s", id)
+	res, err := http.Get(requestURL)
+	if err != nil {
+		log.Println("[web-router] failed doing get call to read equipment")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		log.Println("[web-router] failed to read equipment at the database")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+		body, _ := io.ReadAll(res.Body)
+		json.Unmarshal(body, &e)
+	}
+
+	if e.IsBlocked {
+		io.WriteString(w, "<h3>Equipment already blocked</h3>")
+		return
+	}
+	
+	e.IsBlocked = true
+	bytestream, err := json.Marshal(e)
+	if err != nil {
+		log.Println("[web-router] failed converting struct to json string")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	req, err := http.NewRequest("PUT", requestURL, bytes.NewBuffer(bytestream))
+	if err != nil {
+		log.Println("[web-router] Error creating request", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	res, err = client.Do(req)
+	if err != nil {
+		log.Println("[web-router] Error making the request", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		log.Println("[web-router] failed to update equipment from the database")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+		io.WriteString(w, "<h3>Success! Equipment was blocked</h3>")
 	}
 }
 
