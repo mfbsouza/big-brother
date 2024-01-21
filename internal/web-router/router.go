@@ -26,12 +26,22 @@ func NewRouter() http.Handler {
 	mux.Get("/equip/remove", removePage)
 	mux.Get("/user/remove", removeUserPage)
 	mux.Get("/log/user", logUserPage)
+	mux.Get("/log/equip", logEquipPage)
 	mux.Post("/login", signIn)
 	mux.Post("/equip/insert", insertData)
 	mux.Post("/equip/remove", removeData)
 	mux.Post("/user/remove", removeUserData)
 	mux.Post("/log/user", logUserData)
+	mux.Post("/log/equip", logEquipData)
 	return mux
+}
+
+func logEquipPage(w http.ResponseWriter, r *http.Request) {
+	if user.VerifyClearance(r) {
+		render.RenderTemplate(w, "log-equip.html", nil)
+	} else {
+		render.RenderTemplate(w, "login.html", nil)
+	}
 }
 
 func logUserPage(w http.ResponseWriter, r *http.Request) {
@@ -221,7 +231,40 @@ func logUserData(w http.ResponseWriter, r *http.Request) {
 			// w.WriteHeader(http.StatusBadRequest)
 			// return
 		}
-		render.SimpleRenderTemplate(w, "log-list.html", logs)
+		render.SimpleRenderTemplate(w, "log-user-list.html", logs)
+	}
+}
+
+func logEquipData(w http.ResponseWriter, r *http.Request) {
+	var logs []dbtypes.Log
+	err := r.ParseForm()
+	if err != nil {
+		log.Println("[web-router] failed parsing form:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	id := r.FormValue("id-equip")
+	if len(id) == 0 {
+		log.Println("[web-router] failed reading 'id-equip' key from form")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	requestURL := fmt.Sprintf("http://localhost:3030/request/log/equip/%s", id)
+	res, err := http.Get(requestURL)
+	if err != nil {
+		log.Println("[web-router] failed requesting data to the database", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+		body, _ := io.ReadAll(res.Body)
+		err := json.Unmarshal(body, &logs)
+		if err != nil {
+			log.Println("[web-router] failed parsing JSON", err)
+			// w.WriteHeader(http.StatusBadRequest)
+			// return
+		}
+		render.SimpleRenderTemplate(w, "log-equip-list.html", logs)
 	}
 }
 
