@@ -24,15 +24,29 @@ func NewRouter() http.Handler {
 	mux.Get("/free", free)
 	mux.Get("/equip/insert", insertPage)
 	mux.Get("/equip/remove", removePage)
+	mux.Get("/user/remove", removeUserPage)
 	mux.Post("/login", signIn)
 	mux.Post("/equip/insert", insertData)
 	mux.Post("/equip/remove", removeData)
+	mux.Post("/user/remove", removeUserData)
 	return mux
+}
+
+func removeUserPage(w http.ResponseWriter, r *http.Request) {
+	if user.VerifyClearance(r) && user.IsAdmin(r) {
+		render.RenderTemplate(w, "del-user.html", nil)
+	} else if !user.IsAdmin(r) {
+		render.RenderTemplate(w, "permission-error.html", nil)
+	} else {
+		render.RenderTemplate(w, "login.html", nil)
+	}
 }
 
 func removePage(w http.ResponseWriter, r *http.Request) {
 	if user.VerifyClearance(r) && user.IsAdmin(r) {
 		render.RenderTemplate(w, "del-equip.html", nil)
+	} else if !user.IsAdmin(r) {
+		render.RenderTemplate(w, "permission-error.html", nil)
 	} else {
 		render.RenderTemplate(w, "login.html", nil)
 	}
@@ -41,6 +55,8 @@ func removePage(w http.ResponseWriter, r *http.Request) {
 func insertPage(w http.ResponseWriter, r *http.Request) {
 	if user.VerifyClearance(r) && user.IsAdmin(r) {
 		render.RenderTemplate(w, "new-equip.html", nil)
+	} else if !user.IsAdmin(r) {
+		render.RenderTemplate(w, "permission-error.html", nil)
 	} else {
 		render.RenderTemplate(w, "login.html", nil)
 	}
@@ -119,11 +135,50 @@ func removeData(w http.ResponseWriter, r *http.Request) {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		log.Println("[web-router] failed to create new equipment at the database")
+		log.Println("[web-router] failed to remove equipment from the database")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	} else {
 		io.WriteString(w, "<h3>Success! Equipment was removed from the database</h3>")
+	}
+}
+
+func removeUserData(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		log.Println("[web-router] failed parsing form:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	id := r.FormValue("id-user")
+	if len(id) == 0 {
+		log.Println("[web-router] failed reading 'id-user' key from form")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	requestURL := fmt.Sprintf("http://localhost:3030/user/id/%s", id)
+	req, err := http.NewRequest("DELETE", requestURL, nil)
+	if err != nil {
+		log.Println("[web-router] Error creating request", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		log.Println("[web-router] Error making the request", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		log.Println("[web-router] failed to remove user from the database")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else {
+		io.WriteString(w, "<h3>Success! User was removed from the database</h3>")
 	}
 }
 
