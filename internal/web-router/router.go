@@ -37,6 +37,7 @@ func NewRouter() http.Handler {
 	mux.Post("/user/remove", removeUserData)
 	mux.Post("/log/user", logUserData)
 	mux.Post("/log/equip", logEquipData)
+	mux.Post("/search", searchData)
 	return mux
 }
 
@@ -101,6 +102,47 @@ func insertPage(w http.ResponseWriter, r *http.Request) {
 		render.RenderTemplate(w, "new-equip.html", nil)
 	} else if !user.IsAdmin(r) {
 		render.RenderTemplate(w, "permission-error.html", nil)
+	} else {
+		render.RenderTemplate(w, "login.html", nil)
+	}
+}
+
+func searchData(w http.ResponseWriter, r *http.Request) {
+	var equipments []dbtypes.Equipment
+	if user.VerifyClearance(r) {
+		err := r.ParseForm()
+		if err != nil {
+			log.Println("[web-router] failed parsing form:", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		s := r.FormValue("search-string")
+		if len(s) == 0 {
+			log.Println("[web-router] failed reading 'search-string' key from form")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		requestURL := fmt.Sprintf("http://localhost:3030/equip/name/%s", s)
+		res, err := http.Get(requestURL)
+		if err != nil {
+			log.Println("[web-router] failed requesting data to the database", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		// } else if res.StatusCode != http.StatusOK {
+		// 	log.Println("[web-router] no free equipment!")
+		// 	w.WriteHeader(http.StatusBadRequest)
+		// 	return
+		} else {
+			body, _ := io.ReadAll(res.Body)
+			err := json.Unmarshal(body, &equipments)
+			if err != nil {
+				log.Println("[web-router] failed parsing JSON", err)
+				// io.WriteString(w, "<h3>No free equipment!</h3>")
+				// return
+			}
+			render.SimpleRenderTemplate(w, "equip-list.html", equipments)
+		}
 	} else {
 		render.RenderTemplate(w, "login.html", nil)
 	}

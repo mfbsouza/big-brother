@@ -1,0 +1,11 @@
+<div class="container py-4 px-3 mx-auto">
+	<div class="row mt-4 g-4">
+		<div class="col-8">
+			<ul class="list-group fs-5 me-5">
+			{{range .}}
+				<li class="list-group-item bg-primary text-white">ID: {{.Id}} - {{.Name}} - Is in use: {{.IsInUse}} - Is Blocked: {{.IsBlocked}} {{ if eq .UserId 0 }}{{ else }} -ID of the user with it: {{.UserId}}{{ end }}</li>
+			{{end}}
+			</ul>
+		</div>
+	</div>
+</div>
