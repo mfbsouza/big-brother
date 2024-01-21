@@ -3,7 +3,7 @@
 
 {{define "content"}}
 <div class="container py-4 px-3 mx-auto" id="name-input-div">
-	<form id="form-insert-equip" hx-post="/insert" hx-indicator="#spinner" hx-target="#name-input-div" autocomplete="off">
+	<form id="form-insert-equip" hx-post="/equip/insert" hx-indicator="#spinner" hx-target="#name-input-div" autocomplete="off">
 		<div class="mb-3">
 		<label for="name-input" class="form-label">Insert the name of the new equipment:</label>
 		<input type="text" name="equip-name" class="form-control" id="name-input">
